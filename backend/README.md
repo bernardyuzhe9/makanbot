@@ -38,3 +38,23 @@ py -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 Cross-platform alternative: create a `.env` file and load it in `main.py` (optional).
+
+## Google Maps Places (GOOGLE_MAPS_API_KEY)
+
+Set your API key before running the backend:
+
+```powershell
+$env:GOOGLE_MAPS_API_KEY = "YOUR_KEY_HERE"
+$env:DIALOGFLOW_PROJECT_ID = "YOUR_PROJECT_ID"
+```
+
+Test chat endpoint:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing \
+  -Uri http://127.0.0.1:8000/chat \
+  -Method POST \
+  -ContentType 'application/json' \
+  -Body '{"message":"find cheap sushi near orchard"}' \
+| Select-Object -ExpandProperty Content
+```

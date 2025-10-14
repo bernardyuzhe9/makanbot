@@ -1,4 +1,5 @@
 import { NavbarMakanBot } from "@/components/ui/Navbar";
+import FirebaseTest from "@/components/ui/FirebaseTest";
 
 export default function MakanbotPage() {
 	return (
@@ -13,6 +14,9 @@ export default function MakanbotPage() {
 				<code className="block whitespace-pre-wrap break-words text-sm">
 					{`GET /api/python/health → {"status":"ok"}`}
 				</code>
+			</div>
+			<div className="mt-6">
+				<FirebaseTest />
 			</div>
 		</main>
 	);
