@@ -18,6 +18,10 @@ export function NavbarMakanBot() {
       name: "MakanBot",
       link: "#MakanBot",
     },
+    {
+      name: "Features",
+      link: "#features",
+    },
   ];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
