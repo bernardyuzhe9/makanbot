@@ -8,3 +8,13 @@ backend/*.p12
 
 .DS_Store
 Thumbs.db
+
+# Environment files (keep examples committed)
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+!.env.example
+!.env.local.example
