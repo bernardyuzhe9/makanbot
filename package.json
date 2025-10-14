@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "backend": "cd backend && uvicorn main:app --reload --host 127.0.0.1 --port 8000",
+    "dev:all": "concurrently \"npm run backend\" \"npm run dev\"",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint"
@@ -22,6 +24,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "concurrently": "^9",
     "eslint": "^9",
     "eslint-config-next": "15.5.5",
     "tailwindcss": "^4",
