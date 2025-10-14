@@ -11,16 +11,17 @@ import {
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
 import { useState } from "react";
+import Link from "next/link";
 
-export function NavbarMakanBot() {
+export function NavbarMakanBot({ showDummyContent = true }) {
   const navItems = [
     {
       name: "MakanBot",
-      link: "#MakanBot",
+      link: "/makanbot",
     },
     {
       name: "Features",
-      link: "#features",
+      link: "/",
     },
   ];
 
@@ -50,13 +51,13 @@ export function NavbarMakanBot() {
 
           <MobileNavMenu isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)}>
             {navItems.map((item, idx) => (
-              <a
+              <Link
                 key={`mobile-link-${idx}`}
                 href={item.link}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="relative text-neutral-600 dark:text-neutral-300">
                 <span className="block">{item.name}</span>
-              </a>
+              </Link>
             ))}
             <div className="flex w-full flex-col gap-4">
               <NavbarButton
@@ -75,7 +76,7 @@ export function NavbarMakanBot() {
           </MobileNavMenu>
         </MobileNav>
       </Navbar>
-      <DummyContent />
+      {showDummyContent && <DummyContent />}
       {/* Navbar */}
     </div>
   );
