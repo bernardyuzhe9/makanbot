@@ -3,9 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
-import os
+
+# Temporary hardcode for testing - using the new API key
+os.environ["GEMINI_API_KEY"] = "AIzaSyDcL7a1PVtzZBID59U7Z4iC6M9alzUwTqY"
+os.environ["GOOGLE_MAPS_API_KEY"] = "AIzaSyCphF8h1fw6g2n9ys60PX3Oa-by9h7lUcU"
+os.environ["DIALOGFLOW_PROJECT_ID"] = "final-year-project-475109"
+
+print("GEMINI_KEY:", os.getenv("GEMINI_API_KEY"))
+print("MAPS_KEY:", os.getenv("GOOGLE_MAPS_API_KEY"))
+print("DF_PROJECT:", os.getenv("DIALOGFLOW_PROJECT_ID"))
 
 from google.cloud import dialogflow_v2 as dialogflow
 import googlemaps
@@ -93,8 +102,10 @@ def search_restaurants(api_key: str, keyword: str, location: str, radius: int = 
         results.append({
             "name": place.get("name"),
             "rating": place.get("rating"),
-            "address": place.get("vicinity"),
+            "vicinity": place.get("vicinity"),
+            "address": place.get("vicinity"),  # Keep both for compatibility
             "place_id": place.get("place_id"),
+            "price_level": place.get("price_level", 2),  # Default to $$ if not available
         })
     return results
 
@@ -157,6 +168,26 @@ def chat(body: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/search-restaurants")
+def search_restaurants_endpoint(body: dict):
+    """Simple endpoint for restaurant search only"""
+    maps_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    if not maps_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_MAPS_API_KEY not set")
+    
+    try:
+        keyword = body.get("keyword", "restaurant")
+        location = body.get("location", "1.3521,103.8198")
+        radius = body.get("radius_meters", 5000)
+        
+        restaurants = search_restaurants(maps_key, keyword, location, radius)
+        
+        return {
+            "restaurants": restaurants
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/gemini-chat")
 def gemini_chat(body: GeminiRequest):
     """New Gemini-powered chat endpoint for food recommendations"""
@@ -169,25 +200,23 @@ def gemini_chat(body: GeminiRequest):
         raise HTTPException(status_code=500, detail="GOOGLE_MAPS_API_KEY not set")
 
     try:
-        # Configure Gemini
+        # Use the exact same approach as the working test_gemini.py
         genai.configure(api_key=gemini_key)
-        model = genai.GenerativeModel('models/gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # Create food-focused prompt
-        prompt = f"""
-        You are MakanBot, a helpful AI assistant specializing in food recommendations in Singapore.
-        User query: "{body.message}"
-        User location: {body.location} (Singapore coordinates)
-        Search radius: {body.radius_meters}m
-        
-        Please provide:
-        1. A friendly, conversational response about food recommendations
-        2. Suggest specific cuisines or dishes based on their request
-        3. Mention any dietary preferences if relevant (halal, vegetarian, etc.)
-        4. Keep response under 200 words and conversational
-        
-        Focus on being helpful for finding great food nearby.
-        """
+        prompt = f"""You are MakanBot, a helpful AI assistant specializing in food recommendations in Singapore.
+User query: "{body.message}"
+User location: {body.location} (Singapore coordinates)
+Search radius: {body.radius_meters}m
+
+Please provide:
+1. A friendly, conversational response about food recommendations
+2. Suggest specific cuisines or dishes based on their request
+3. Mention any dietary preferences if relevant (halal, vegetarian, etc.)
+4. Keep response under 200 words and conversational
+
+Focus on being helpful for finding great food nearby."""
         
         # Get Gemini response
         response = model.generate_content(prompt)
@@ -219,5 +248,8 @@ def gemini_chat(body: GeminiRequest):
         }
         
     except Exception as e:
+        import traceback
+        error_details = f"Gemini error: {str(e)}\nTraceback: {traceback.format_exc()}"
+        print(f"Full error: {error_details}")
         raise HTTPException(status_code=500, detail=f"Gemini error: {str(e)}")
 
