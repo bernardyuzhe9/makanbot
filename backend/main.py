@@ -1,6 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+from dotenv import load_dotenv
+
+load_dotenv()
 import os
 
 from google.cloud import dialogflow_v2 as dialogflow
