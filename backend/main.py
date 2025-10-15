@@ -5,6 +5,7 @@ import os
 
 from google.cloud import dialogflow_v2 as dialogflow
 import googlemaps
+import google.generativeai as genai
 
 
 app = FastAPI(title="Makanbot Python Backend", version="0.1.0")
@@ -12,7 +13,7 @@ app = FastAPI(title="Makanbot Python Backend", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3002", "http://127.0.0.1:3002"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,12 +29,45 @@ def health() -> dict:
 def hello(name: str = "world") -> dict:
     return {"message": f"Hello, {name}!"}
 
+@app.get("/test-gemini")
+def test_gemini():
+    """Test endpoint to check if Gemini API key is set"""
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    maps_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    
+    return {
+        "gemini_key_set": bool(gemini_key),
+        "maps_key_set": bool(maps_key),
+        "gemini_key_length": len(gemini_key) if gemini_key else 0,
+        "maps_key_length": len(maps_key) if maps_key else 0
+    }
+
+@app.get("/list-models")
+def list_models():
+    """List available Gemini models"""
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_key:
+        return {"error": "GEMINI_API_KEY not set"}
+    
+    try:
+        genai.configure(api_key=gemini_key)
+        models = genai.list_models()
+        model_names = [model.name for model in models if 'generateContent' in model.supported_generation_methods]
+        return {"available_models": model_names}
+    except Exception as e:
+        return {"error": str(e)}
+
 
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
     location: str | None = None  # "lat,lng"; default Singapore
     radius_meters: int | None = 5000
+
+class GeminiRequest(BaseModel):
+    message: str
+    location: str = "1.3521,103.8198"  # Singapore default
+    radius_meters: int = 5000
 
 
 def detect_intent_text(project_id: str, text: str, session_id: str, language_code: str = "en"):
@@ -117,4 +151,69 @@ def chat(body: ChatRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/gemini-chat")
+def gemini_chat(body: GeminiRequest):
+    """New Gemini-powered chat endpoint for food recommendations"""
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    maps_key = os.getenv("GOOGLE_MAPS_API_KEY")
+    
+    if not gemini_key:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set")
+    if not maps_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_MAPS_API_KEY not set")
+
+    try:
+        # Configure Gemini
+        genai.configure(api_key=gemini_key)
+        model = genai.GenerativeModel('models/gemini-2.5-flash')
+        
+        # Create food-focused prompt
+        prompt = f"""
+        You are MakanBot, a helpful AI assistant specializing in food recommendations in Singapore.
+        User query: "{body.message}"
+        User location: {body.location} (Singapore coordinates)
+        Search radius: {body.radius_meters}m
+        
+        Please provide:
+        1. A friendly, conversational response about food recommendations
+        2. Suggest specific cuisines or dishes based on their request
+        3. Mention any dietary preferences if relevant (halal, vegetarian, etc.)
+        4. Keep response under 200 words and conversational
+        
+        Focus on being helpful for finding great food nearby.
+        """
+        
+        # Get Gemini response
+        response = model.generate_content(prompt)
+        gemini_reply = response.text
+        
+        # Extract keywords for restaurant search
+        user_text = body.message.lower()
+        cuisine_keywords = [
+            "sushi", "pizza", "burger", "thai", "korean", "ramen", "steak",
+            "seafood", "chicken", "indian", "indonesian", "malay", "dim sum",
+            "noodle", "cafe", "bakery", "coffee", "chinese", "japanese",
+            "italian", "western", "local", "halal", "vegetarian"
+        ]
+        
+        cuisine = None
+        for keyword in cuisine_keywords:
+            if keyword in user_text:
+                cuisine = keyword
+                break
+        
+        # Search for restaurants
+        restaurants = search_restaurants(maps_key, cuisine or "restaurant", body.location, body.radius_meters)
+        
+        return {
+            "reply": gemini_reply,
+            "cuisine": cuisine,
+            "restaurants": restaurants,
+            "source": "gemini"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gemini error: {str(e)}")
 
