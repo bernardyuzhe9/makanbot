@@ -18,3 +18,4 @@ Thumbs.db
 .env.*.local
 !.env.example
 !.env.local.example
+src/lib/firebaseClient.js
